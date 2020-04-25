@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
@@ -103,8 +104,33 @@ func signup(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, user)
 }
 
+func GenerateToken(user User) (string, error) {
+	//var error error
+	secret := "secret" // could be anything
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"email": user.Email,
+		"iss": "course",
+	})
+
+	tokenString, err := token.SignedString([]byte(secret)); if err != nil {
+		log.Fatal(err)
+	}
+
+	return tokenString, nil
+
+	// jwt = header.payload.secret
+}
+
 func login(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("login invoked")
+
+	var user User
+	json.NewDecoder(r.Body).Decode(&user)
+
+	token, err := GenerateToken(user); if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(token, err)
 }
 
 func protectedEndpoint(w http.ResponseWriter, r *http.Request) {
