@@ -2,11 +2,15 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
+	//"github.com/davecgh/go-spew/spew"
+
 )
 
 /*
@@ -55,8 +59,48 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
+func respondWithError(w http.ResponseWriter, status int, error Error) {
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(error)
+}
+
+func responseJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
+}
+
 func signup(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("signup invoked")
+	var user User
+	var error Error
+	json.NewDecoder(r.Body).Decode(&user)
+
+	//spew.Dump(user)
+	if user.Email == "" {
+		error.Message = "Email is missing"
+		respondWithError(w, http.StatusBadRequest, error)
+		return
+	}
+	if user.Password == "" {
+		error.Message = "Password is missing"
+		respondWithError(w, http.StatusBadRequest, error)
+		return
+	}
+
+	// Encrypt the password
+	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10); if err != nil {
+		log.Fatal(err)
+	}
+	user.Password = string(hash)
+
+	// Insert into DB
+	stmt := "insert into users (email, password) values($1, $2) RETURNING id;"
+	err = db.QueryRow(stmt, user.Email, user.Password).Scan(&user.ID); if err != nil {// since query returns id
+		error.Message = "Server error"
+		respondWithError(w, http.StatusInternalServerError, error)
+		return
+	}
+	user.Password = ""
+	responseJSON(w, user)
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
