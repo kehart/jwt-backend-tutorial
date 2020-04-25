@@ -7,6 +7,23 @@ import (
 	"net/http"
 )
 
+/*
+Models
+ */
+type User struct {
+	ID 			int `json:"id"`
+	Email		string `json:"email"`
+	Password	string `json:"password"`
+}
+
+type JWT struct {
+	Token string `json:"token"`
+}
+
+type Error struct {
+	Message string `json:"message"`
+}
+
 func main() {
 
 	router := mux.NewRouter()
@@ -32,7 +49,8 @@ func protectedEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return nil
+	fmt.Println("middleware invoked")
+	return next
 }
 
 
