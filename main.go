@@ -10,8 +10,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
+	"strings"
 	//"github.com/davecgh/go-spew/spew"
-
 )
 
 /*
@@ -105,7 +105,6 @@ func signup(w http.ResponseWriter, r *http.Request) {
 }
 
 func GenerateToken(user User) (string, error) {
-	//var error error
 	secret := "secret" // could be anything
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -118,8 +117,6 @@ func GenerateToken(user User) (string, error) {
 	}
 
 	return tokenString, nil
-
-	// jwt = header.payload.secret
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -177,8 +174,41 @@ func protectedEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	fmt.Println("middleware invoked")
-	return next
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var errorObject Error
+		authHeader := r.Header.Get("Authorization") // returns "KEY VAL"
+		bearerToken := strings.Split(authHeader, " ")
+
+		if len(bearerToken) == 2 {
+			authToken := bearerToken[1]
+
+			token, error := jwt.Parse(authToken, func(token *jwt.Token) (interface{}, error) {
+				//spew.Dump(token)
+
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok { // verifies the algorithm is ok
+					return nil, fmt.Errorf("there was an error")
+				}
+
+				return []byte("secret"), nil
+			}); if error != nil {
+				errorObject.Message = error.Error()
+				respondWithError(w, http.StatusUnauthorized, errorObject)
+				return
+			}
+
+			if token.Valid {
+				next.ServeHTTP(w, r)
+			} else {
+				errorObject.Message = error.Error()
+				respondWithError(w, http.StatusUnauthorized, errorObject)
+				return
+			}
+		} else {
+			errorObject.Message = "Invalid token"
+			respondWithError(w, http.StatusUnauthorized, errorObject)
+			return
+		}
+	})
 }
 
 
