@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+	"github.com/jwt-backend-tutorial/driver"
 	"github.com/jwt-backend-tutorial/models"
 	"github.com/lib/pq"
 	"github.com/subosito/gotenv"
@@ -16,10 +17,6 @@ import (
 	"strings"
 	//"github.com/davecgh/go-spew/spew"
 )
-
-
-
-// Global DB variable
 var db *sql.DB
 
 func init() {
@@ -28,18 +25,7 @@ func init() {
 
 func main() {
 
-	pgUrl, err := pq.ParseURL(os.Getenv("ELEPHANTSQL_URL")); if err != nil {
-		log.Fatal(err)
-	}
-
-	db, err = sql.Open("postgres", pgUrl); if err != nil {
-		log.Fatal(err)
-	}
-
-	err = db.Ping(); if err != nil {
-		log.Fatal(err)
-	}
-
+	db = driver.ConnectDB()
 	router := mux.NewRouter()
 
 	router.HandleFunc("/signup", signup).Methods("POST")
