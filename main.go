@@ -7,9 +7,11 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
+	"github.com/subosito/gotenv"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	//"github.com/davecgh/go-spew/spew"
 )
@@ -34,11 +36,13 @@ type Error struct {
 // Global DB variable
 var db *sql.DB
 
-// URL for DB connection declared
-// postgres://ksggpgzb:bV1fFTMvXIMUVBH-AW3Tx0MvQP0jR9Du@drona.db.elephantsql.com:5432/ksggpgzb
+func init() {
+	gotenv.Load()
+}
+
 func main() {
 
-	pgUrl, err := pq.ParseURL("postgres://ksggpgzb:bV1fFTMvXIMUVBH-AW3Tx0MvQP0jR9Du@drona.db.elephantsql.com:5432/ksggpgzb"); if err != nil {
+	pgUrl, err := pq.ParseURL(os.Getenv("ELEPHANTSQL_URL")); if err != nil {
 		log.Fatal(err)
 	}
 
@@ -105,7 +109,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 }
 
 func GenerateToken(user User) (string, error) {
-	secret := "secret" // could be anything
+	secret := os.Getenv("SECRET") // could be anything
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"email": user.Email,
@@ -189,7 +193,7 @@ func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 					return nil, fmt.Errorf("there was an error")
 				}
 
-				return []byte("secret"), nil
+				return []byte(os.Getenv("SECRET")), nil
 			}); if error != nil {
 				errorObject.Message = error.Error()
 				respondWithError(w, http.StatusUnauthorized, errorObject)
