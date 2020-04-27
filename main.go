@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+	"github.com/jwt-backend-tutorial/models"
 	"github.com/lib/pq"
 	"github.com/subosito/gotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -16,22 +17,7 @@ import (
 	//"github.com/davecgh/go-spew/spew"
 )
 
-/*
-Models
- */
-type User struct {
-	ID 			int `json:"id"`
-	Email		string `json:"email"`
-	Password	string `json:"password"`
-}
 
-type JWT struct {
-	Token string `json:"token"`
-}
-
-type Error struct {
-	Message string `json:"message"`
-}
 
 // Global DB variable
 var db *sql.DB
@@ -64,7 +50,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
-func respondWithError(w http.ResponseWriter, status int, error Error) {
+func respondWithError(w http.ResponseWriter, status int, error models.Error) {
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(error)
 }
@@ -75,8 +61,8 @@ func responseJSON(w http.ResponseWriter, data interface{}) {
 }
 
 func signup(w http.ResponseWriter, r *http.Request) {
-	var user User
-	var error Error
+	var user models.User
+	var error models.Error
 	json.NewDecoder(r.Body).Decode(&user)
 
 	//spew.Dump(user)
@@ -108,7 +94,7 @@ func signup(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, user)
 }
 
-func GenerateToken(user User) (string, error) {
+func GenerateToken(user models.User) (string, error) {
 	secret := os.Getenv("SECRET") // could be anything
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -124,9 +110,9 @@ func GenerateToken(user User) (string, error) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	var user User
-	var jwt JWT
-	var error Error
+	var user models.User
+	var jwt models.JWT
+	var error models.Error
 
 	json.NewDecoder(r.Body).Decode(&user)
 
@@ -179,7 +165,7 @@ func protectedEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var errorObject Error
+		var errorObject models.Error
 		authHeader := r.Header.Get("Authorization") // returns "KEY VAL"
 		bearerToken := strings.Split(authHeader, " ")
 
