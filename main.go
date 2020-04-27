@@ -8,14 +8,13 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jwt-backend-tutorial/driver"
 	"github.com/jwt-backend-tutorial/models"
-	"github.com/lib/pq"
+	"github.com/jwt-backend-tutorial/utils"
 	"github.com/subosito/gotenv"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
-	//"github.com/davecgh/go-spew/spew"
 )
 var db *sql.DB
 
@@ -36,15 +35,6 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
-func respondWithError(w http.ResponseWriter, status int, error models.Error) {
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(error)
-}
-
-func responseJSON(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
-}
 
 func signup(w http.ResponseWriter, r *http.Request) {
 	var user models.User
@@ -54,12 +44,12 @@ func signup(w http.ResponseWriter, r *http.Request) {
 	//spew.Dump(user)
 	if user.Email == "" {
 		error.Message = "Email is missing"
-		respondWithError(w, http.StatusBadRequest, error)
+		utils.RespondWithError(w, http.StatusBadRequest, error)
 		return
 	}
 	if user.Password == "" {
 		error.Message = "Password is missing"
-		respondWithError(w, http.StatusBadRequest, error)
+		utils.RespondWithError(w, http.StatusBadRequest, error)
 		return
 	}
 
@@ -73,11 +63,11 @@ func signup(w http.ResponseWriter, r *http.Request) {
 	stmt := "insert into users (email, password) values($1, $2) RETURNING id;"
 	err = db.QueryRow(stmt, user.Email, user.Password).Scan(&user.ID); if err != nil {// since query returns id
 		error.Message = "Server error"
-		respondWithError(w, http.StatusInternalServerError, error)
+		utils.RespondWithError(w, http.StatusInternalServerError, error)
 		return
 	}
 	user.Password = ""
-	responseJSON(w, user)
+	utils.ResponseJSON(w, user)
 }
 
 func GenerateToken(user models.User) (string, error) {
@@ -105,12 +95,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 	// Validation
 	if user.Email == "" {
 		error.Message = "Email is missing"
-		respondWithError(w, http.StatusBadRequest, error)
+		utils.RespondWithError(w, http.StatusBadRequest, error)
 		return
 	}
 	if user.Password == "" {
 		error.Message = "Password is missing"
-		respondWithError(w, http.StatusBadRequest, error)
+		utils.RespondWithError(w, http.StatusBadRequest, error)
 		return
 	}
 
@@ -120,7 +110,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	err := row.Scan(&user.ID, &user.Email, &user.Password); if err != nil {
 		if err == sql.ErrNoRows {
 			error.Message = "The user does not exist"
-			respondWithError(w, http.StatusBadRequest, error)
+			utils.RespondWithError(w, http.StatusBadRequest, error)
 			return
 		} else {
 			log.Fatal(err)
@@ -131,7 +121,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)); if err != nil {
 		error.Message = "Invalid Password"
-		respondWithError(w, http.StatusUnauthorized, error)
+		utils.RespondWithError(w, http.StatusUnauthorized, error)
 		return
 	}
 
@@ -142,7 +132,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	jwt.Token = token
 
-	responseJSON(w, jwt)
+	utils.ResponseJSON(w, jwt)
 }
 
 func protectedEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -168,7 +158,7 @@ func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				return []byte(os.Getenv("SECRET")), nil
 			}); if error != nil {
 				errorObject.Message = error.Error()
-				respondWithError(w, http.StatusUnauthorized, errorObject)
+				utils.RespondWithError(w, http.StatusUnauthorized, errorObject)
 				return
 			}
 
@@ -176,12 +166,12 @@ func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				next.ServeHTTP(w, r)
 			} else {
 				errorObject.Message = error.Error()
-				respondWithError(w, http.StatusUnauthorized, errorObject)
+				utils.RespondWithError(w, http.StatusUnauthorized, errorObject)
 				return
 			}
 		} else {
 			errorObject.Message = "Invalid token"
-			respondWithError(w, http.StatusUnauthorized, errorObject)
+			utils.RespondWithError(w, http.StatusUnauthorized, errorObject)
 			return
 		}
 	})
