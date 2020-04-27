@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/jwt-backend-tutorial/models"
+	userRepository "github.com/jwt-backend-tutorial/repository/user"
 	"github.com/jwt-backend-tutorial/utils"
 	"golang.org/x/crypto/bcrypt"
 	"log"
@@ -42,14 +43,14 @@ func (c Controller) Signup(db *sql.DB) http.HandlerFunc {
 		user.Password = string(hash)
 
 		// Insert into DB
-		stmt := "insert into users (email, password) values($1, $2) RETURNING id;"
-		err = db.QueryRow(stmt, user.Email, user.Password).Scan(&user.ID);
-		if err != nil { // since query returns id
-			error.Message = "Server error"
-			utils.RespondWithError(w, http.StatusInternalServerError, error)
-			return
-		}
-		user.Password = ""
+		userRepo := userRepository.UserRepository{}
+		user = userRepo.Signup(db, user)
+
+		//if err != nil { // since query returns id
+		//	error.Message = "Server error"
+		//	utils.RespondWithError(w, http.StatusInternalServerError, error)
+		//	return
+		//}
 		utils.ResponseJSON(w, user)
 	}
 }
@@ -75,8 +76,8 @@ func (c Controller) Login(db *sql.DB) http.HandlerFunc {
 
 		password := user.Password
 
-		row := db.QueryRow("select * from users where email=$1", user.Email)
-		err := row.Scan(&user.ID, &user.Email, &user.Password);
+		userRepo := userRepository.UserRepository{}
+		user, err := userRepo.Login(db, user)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				error.Message = "The user does not exist"
